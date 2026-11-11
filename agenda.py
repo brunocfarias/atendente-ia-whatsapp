@@ -2,6 +2,8 @@ from datetime import date
 
 import holidays
 
+import db
+
 # ---------- Configuração do negócio ----------
 
 # Feriados nacionais + estaduais de SP, calculados automaticamente para qualquer ano
@@ -27,12 +29,6 @@ HORARIOS_POR_DIA = {
     4: gerar_horarios(9, 20),  # sexta
     5: gerar_horarios(8, 18),  # sábado
     6: [],                     # domingo: fechado
-}
-
-
-# Horários já marcados (depois isso vira banco de dados)
-OCUPADOS = {
-    "2026-11-14": ["09:00", "10:00", "15:00"],
 }
 
 
@@ -76,10 +72,9 @@ def verificar_disponibilidade(data: str) -> dict:
     if not horarios_do_dia:
         return {"aberto": False, "motivo": "A barbearia não abre nesse dia da semana"}
 
-    ocupados = OCUPADOS.get(data, [])
+    ocupados = db.horarios_ocupados(data)
     livres = [h for h in horarios_do_dia if h not in ocupados]
     return {"aberto": True, "horarios_livres": livres}
-
 
 def agendar_horario(data: str, horario: str, nome_cliente: str, servico: str) -> dict:
     """Agenda um horário para o cliente.
@@ -109,6 +104,7 @@ def agendar_horario(data: str, horario: str, nome_cliente: str, servico: str) ->
     if horario not in disponibilidade["horarios_livres"]:
         return {"sucesso": False, "erro": f"O horário {horario} não está disponível nessa data."}
 
-    OCUPADOS.setdefault(data, []).append(horario)
-    return {"sucesso": True, "data": data, "horario": horario, "cliente": nome_cliente, "servico": servico}
+    if not db.salvar_agendamento(data, horario, nome_cliente, servico):
+        return {"sucesso": False, "erro": f"O horário {horario} acabou de ser reservado por outro cliente."}
 
+    return {"sucesso": True, "data": data, "horario": horario, "cliente": nome_cliente, "servico": servico}
