@@ -1,12 +1,20 @@
 import os
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from datetime import date
+from google.genai import errors
+from agenda import verificar_disponibilidade
 
 PASTA = Path(__file__).parent
 base = (PASTA / "base" / "negocios.md").read_text(encoding="utf-8")
 prompt = (PASTA / "base" / "prompt.md").read_text(encoding="utf-8")
+
+DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+hoje = date.today()
+data_hoje = f"Hoje é {DIAS[hoje.weekday()]}, {hoje.isoformat()}."
 
 load_dotenv()
 client = genai.Client(
@@ -16,8 +24,9 @@ client = genai.Client(
 chat = client.chats.create(
     model=os.getenv("GEMINI_MODEL"),
     config=types.GenerateContentConfig(
-    system_instruction=f"{prompt}\n\n## BASE DE CONHECIMENTO\n{base}",
+    system_instruction=f"{prompt}\n\n{data_hoje}\n\n## BASE DE CONHECIMENTO\n{base}",
     temperature=0.2,
+    tools=[verificar_disponibilidade],
     )
 )
 
