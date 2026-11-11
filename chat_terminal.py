@@ -1,46 +1,81 @@
 import os
+import re
 import time
+from datetime import date
 from pathlib import Path
+
 from dotenv import load_dotenv
 from google import genai
-from google.genai import types
-from datetime import date
-from google.genai import errors
-from agenda import verificar_disponibilidade
+from google.genai import errors, types
 
-PASTA = Path(__file__).parent
-base = (PASTA / "base" / "negocios.md").read_text(encoding="utf-8")
-prompt = (PASTA / "base" / "prompt.md").read_text(encoding="utf-8")
-
-DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
-hoje = date.today()
-data_hoje = f"Hoje é {DIAS[hoje.weekday()]}, {hoje.isoformat()}."
+from agenda import agendar_horario, verificar_disponibilidade
 
 load_dotenv()
-client = genai.Client(
-    api_key=os.environ["GEMINI_API_KEY"],
-    http_options=types.HttpOptions(timeout=30_000),  # 30 segundos
-)
-chat = client.chats.create(
-    model=os.getenv("GEMINI_MODEL"),
-    config=types.GenerateContentConfig(
-    system_instruction=f"{prompt}\n\n{data_hoje}\n\n## BASE DE CONHECIMENTO\n{base}",
-    temperature=0.2,
-    tools=[verificar_disponibilidade],
+
+PASTA = Path(__file__).parent
+DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado", "domingo"]
+TENTATIVAS = 3
+
+
+def formatar_whatsapp(texto: str) -> str:
+    """Converte o negrito do Markdown (**texto**) para o do WhatsApp (*texto*)."""
+    return re.sub(r"\*\*(.+?)\*\*", r"*\1*", texto)
+
+
+def montar_instrucoes() -> str:
+    """Junta prompt, data de hoje e base de conhecimento no prompt de sistema."""
+    prompt = (PASTA / "base" / "prompt.md").read_text(encoding="utf-8")
+    base = (PASTA / "base" / "negocios.md").read_text(encoding="utf-8")
+    hoje = date.today()
+    data_hoje = f"Hoje é {DIAS[hoje.weekday()]}, {hoje.isoformat()}."
+    return f"{prompt}\n\n{data_hoje}\n\n## BASE DE CONHECIMENTO\n{base}"
+
+
+def criar_chat(client):
+    """Cria um chat com memória e ferramentas usando o client informado."""
+    return client.chats.create(
+        model=os.getenv("GEMINI_MODEL"),
+        config=types.GenerateContentConfig(
+            system_instruction=montar_instrucoes(),
+            temperature=0.2,
+            tools=[verificar_disponibilidade, agendar_horario],
+        ),
     )
-)
 
-while True: 
-    mensagem = input("Digite sua pergunta (ou 'sair' para encerrar): ")
-    if mensagem.lower() == "sair":
-        print("Encerrando o programa. Até logo!")
-        break
 
-    try:
-        resposta = chat.send_message(mensagem)
-        print(resposta.text)
-    
-    except Exception as erro:
-        print("Desculpe, tive um problema agora. Tenta de novo em instantes.")
-        print(f"[log] {erro}")
+def responder(chat, mensagem: str) -> str:
+    """Envia a mensagem com retry em erros temporários do servidor."""
+    for tentativa in range(TENTATIVAS):
+        try:
+            resposta = chat.send_message(mensagem)
+            return formatar_whatsapp(resposta.text)
+        except errors.ServerError as erro:
+            espera = 2 ** tentativa  # 1s, 2s, 4s
+            print(f"  [retry] {erro.code}, tentando de novo em {espera}s...")
+            time.sleep(espera)
+        except Exception as erro:
+            print(f"  [log] {erro}")
+            return "Desculpe, tive um problema agora. Tenta de novo em instantes."
+    return "Desculpe, nosso sistema está instável agora. Tenta de novo em alguns minutos."
 
+
+def main():
+    client = genai.Client(
+        api_key=os.environ["GEMINI_API_KEY"],
+        http_options=types.HttpOptions(timeout=30_000),  # 30 segundos
+    )
+    chat = criar_chat(client)
+    print("Atendente pronto. Digite 'sair' para encerrar.\n")
+
+    while True:
+        mensagem = input("Você: ").strip()
+        if mensagem.lower() == "sair":
+            print("Encerrando o programa. Até logo!")
+            break
+        if not mensagem:
+            continue
+        print(f"Atendente: {responder(chat, mensagem)}\n")
+
+
+if __name__ == "__main__":
+    main()

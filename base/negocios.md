@@ -18,7 +18,7 @@ Combo (Corte + Barba): R$ 70,00
 
 Corte Infantil (até 12 anos): R$ 35,00
 
-Pézinho / Acabamento: R$ 15,00
+Pezinho / Acabamento: R$ 15,00
 
 Sobrancelha (na navalha): R$ 15,00
 

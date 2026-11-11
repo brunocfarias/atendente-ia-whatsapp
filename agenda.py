@@ -29,9 +29,21 @@ HORARIOS_POR_DIA = {
     6: [],                     # domingo: fechado
 }
 
+
 # Horários já marcados (depois isso vira banco de dados)
 OCUPADOS = {
     "2026-11-14": ["09:00", "10:00", "15:00"],
+}
+
+
+# Serviços oferecidos (os nomes têm que bater com o negocios.md)
+SERVICOS = {
+    "Corte Clássico/Degradê",
+    "Barba",
+    "Combo (Corte + Barba)",
+    "Corte Infantil",
+    "Pezinho / Acabamento",
+    "Sobrancelha",
 }
 
 
@@ -67,3 +79,36 @@ def verificar_disponibilidade(data: str) -> dict:
     ocupados = OCUPADOS.get(data, [])
     livres = [h for h in horarios_do_dia if h not in ocupados]
     return {"aberto": True, "horarios_livres": livres}
+
+
+def agendar_horario(data: str, horario: str, nome_cliente: str, servico: str) -> dict:
+    """Agenda um horário para o cliente.
+
+    Só use depois que o cliente CONFIRMAR a data, o horário, o serviço e o nome.
+
+    Args:
+        data: Data no formato AAAA-MM-DD, por exemplo 2026-11-14.
+        horario: Horário no formato HH:MM, por exemplo 14:00.
+        nome_cliente: Nome do cliente.
+        servico: Nome exato de um dos serviços: Corte Clássico/Degradê, Barba,
+            Combo (Corte + Barba), Corte Infantil, Pezinho / Acabamento ou Sobrancelha.
+
+    Returns:
+        {"sucesso": True, ...} se agendou, ou {"sucesso": False, "erro": "..."} se não foi possível.
+    """
+    print(f"  [ferramenta] agendar_horario({data}, {horario}, {nome_cliente}, {servico})")
+
+    if servico not in SERVICOS:
+        return {"sucesso": False, "erro": f"Serviço inválido. Opções: {', '.join(sorted(SERVICOS))}"}
+
+    disponibilidade = verificar_disponibilidade(data)
+
+    if not disponibilidade["aberto"]:
+        return {"sucesso": False, "erro": disponibilidade["motivo"]}
+
+    if horario not in disponibilidade["horarios_livres"]:
+        return {"sucesso": False, "erro": f"O horário {horario} não está disponível nessa data."}
+
+    OCUPADOS.setdefault(data, []).append(horario)
+    return {"sucesso": True, "data": data, "horario": horario, "cliente": nome_cliente, "servico": servico}
+
