@@ -16,3 +16,16 @@ def test_detecta_palavra_sensivel_com_acento_e_maiuscula():
 def test_nao_dispara_em_mensagem_normal():
     assert not contem_palavra_sensivel("Como é o processo pra agendar?")
     assert not contem_palavra_sensivel("Quero cortar o cabelo sábado")
+
+
+def test_nao_transfere_sem_nome_se_cliente_nao_recusou():
+    resultado = transferir_para_humano("Não informado", "Reclamação", "Degradê ficou ruim.")
+    assert resultado["transferido"] is False
+    assert len(db.escalacoes_abertas()) == 0
+
+
+def test_transfere_sem_nome_se_cliente_recusou():
+    resultado = transferir_para_humano(
+        "Não informado", "Reclamação", "Degradê ficou ruim.", cliente_recusou_nome=True
+    )
+    assert resultado["transferido"] is True

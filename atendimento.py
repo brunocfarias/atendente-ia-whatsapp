@@ -32,23 +32,8 @@ def avisar_dono(protocolo: int, cliente: str, motivo: str, resumo: str) -> None:
     print(f"                {resumo}")
 
 
-def transferir_para_humano(nome_cliente: str, motivo: str, resumo: str) -> dict:
-    """Transfere o atendimento para um atendente humano da barbearia.
-
-    Use quando: o cliente pedir para falar com uma pessoa; o assunto for reclamação,
-    reembolso ou cobrança; ou você não conseguir resolver algo importante.
-
-    Args:
-        nome_cliente: Nome do cliente, ou "Não informado" se ele não quiser dizer.
-        motivo: Motivo curto, por exemplo "Reclamação" ou "Pediu atendente".
-        resumo: Resumo da conversa em até 2 frases, com o que o cliente quer,
-            para o atendente não precisar perguntar tudo de novo.
-
-    Returns:
-        {"transferido": True, "protocolo": número, "mensagem_para_cliente": texto pronto}.
-    """
-    print(f"  [ferramenta] transferir_para_humano({nome_cliente}, {motivo})")
-
+def registrar_transferencia(nome_cliente: str, motivo: str, resumo: str) -> dict:
+    """Grava a transferência, avisa o dono e devolve a mensagem padrão para o cliente."""
     protocolo = db.salvar_escalacao(nome_cliente, motivo, resumo)
     avisar_dono(protocolo, nome_cliente, motivo, resumo)
     return {
@@ -59,3 +44,38 @@ def transferir_para_humano(nome_cliente: str, motivo: str, resumo: str) -> dict:
             "Um atendente da equipe vai te responder por aqui em breve. 👍"
         ),
     }
+
+
+def transferir_para_humano(
+    nome_cliente: str, motivo: str, resumo: str, cliente_recusou_nome: bool = False
+) -> dict:
+    """Transfere o atendimento para um atendente humano da barbearia.
+
+    Use quando: o cliente pedir para falar com uma pessoa; o assunto for reclamação,
+    reembolso ou cobrança; ou você não conseguir resolver algo importante.
+
+    Antes de usar, pergunte o nome do cliente. Só use sem o nome se ele se recusar
+    a informar; nesse caso, marque cliente_recusou_nome como True.
+
+    Args:
+        nome_cliente: Nome do cliente, ou "Não informado" se ele se recusou a dizer.
+        motivo: Motivo curto, por exemplo "Reclamação" ou "Pediu atendente".
+        resumo: Resumo da conversa em até 2 frases, com o que o cliente quer,
+            para o atendente não precisar perguntar tudo de novo.
+        cliente_recusou_nome: True somente se o cliente foi perguntado e se recusou a dizer o nome.
+
+    Returns:
+        {"transferido": True, "protocolo": ..., "mensagem_para_cliente": ...}
+        ou {"transferido": False, "erro": "..."} se faltar o nome.
+    """
+    print(f"  [ferramenta] transferir_para_humano({nome_cliente}, {motivo})")
+
+    sem_nome = not nome_cliente.strip() or nome_cliente == "Não informado"
+    if sem_nome and not cliente_recusou_nome:
+        return {
+            "transferido": False,
+            "erro": "Pergunte o nome do cliente antes de transferir. "
+                    "Se ele se recusar, chame de novo com cliente_recusou_nome=True.",
+        }
+
+    return registrar_transferencia(nome_cliente, motivo, resumo)

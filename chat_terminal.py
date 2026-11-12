@@ -9,7 +9,7 @@ from google import genai
 from google.genai import errors, types
 
 from agenda import agendar_horario, verificar_disponibilidade
-from atendimento import contem_palavra_sensivel, transferir_para_humano
+from atendimento import contem_palavra_sensivel, registrar_transferencia, transferir_para_humano
 
 load_dotenv()
 
@@ -48,7 +48,7 @@ def responder(chat, mensagem: str) -> str:
     """Responde o cliente: assunto sensível vai direto para humano; o resto passa pela IA com retry."""
     if contem_palavra_sensivel(mensagem):
         print("  [filtro] assunto sensível detectado, transferindo sem passar pela IA")
-        resultado = transferir_para_humano("Não informado", "Assunto sensível", mensagem)
+        resultado = registrar_transferencia("Não informado", "Assunto sensível", mensagem)
         return resultado["mensagem_para_cliente"]
 
     for tentativa in range(TENTATIVAS):
@@ -72,15 +72,17 @@ def main():
     )
     chat = criar_chat(client)
     print("Atendente pronto. Digite 'sair' para encerrar.\n")
-
-    while True:
-        mensagem = input("Você: ").strip()
-        if mensagem.lower() == "sair":
-            print("Encerrando o programa. Até logo!")
-            break
-        if not mensagem:
-            continue
-        print(f"Atendente: {responder(chat, mensagem)}\n")
+    try:
+        while True:
+            mensagem = input("Você: ").strip()
+            if mensagem.lower() == "sair":
+                print("Encerrando o programa. Até logo!")
+                break
+            if not mensagem:
+                continue
+            print(f"Atendente: {responder(chat, mensagem)}\n")
+    except KeyboardInterrupt:
+        print("\nEncerrando o programa. Até logo!")
 
 
 if __name__ == "__main__":
