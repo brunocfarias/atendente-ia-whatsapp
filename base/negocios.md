@@ -22,6 +22,8 @@ Pezinho / Acabamento: R$ 15,00
 
 Sobrancelha (na navalha): R$ 15,00
 
+A lista acima é completa.
+
 Formas de Pagamento
 
 Aceitamos as seguintes formas:

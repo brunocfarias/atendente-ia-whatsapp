@@ -9,6 +9,7 @@ from google import genai
 from google.genai import errors, types
 
 from agenda import agendar_horario, verificar_disponibilidade
+from atendimento import contem_palavra_sensivel, transferir_para_humano
 
 load_dotenv()
 
@@ -38,13 +39,18 @@ def criar_chat(client):
         config=types.GenerateContentConfig(
             system_instruction=montar_instrucoes(),
             temperature=0.2,
-            tools=[verificar_disponibilidade, agendar_horario],
+            tools=[verificar_disponibilidade, agendar_horario, transferir_para_humano],
         ),
     )
 
 
 def responder(chat, mensagem: str) -> str:
-    """Envia a mensagem com retry em erros temporários do servidor."""
+    """Responde o cliente: assunto sensível vai direto para humano; o resto passa pela IA com retry."""
+    if contem_palavra_sensivel(mensagem):
+        print("  [filtro] assunto sensível detectado, transferindo sem passar pela IA")
+        resultado = transferir_para_humano("Não informado", "Assunto sensível", mensagem)
+        return resultado["mensagem_para_cliente"]
+
     for tentativa in range(TENTATIVAS):
         try:
             resposta = chat.send_message(mensagem)
